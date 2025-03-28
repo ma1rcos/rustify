@@ -6,12 +6,8 @@ use crate::model::response;
 use crate::env::{
     MASTER_KEY, 
     ADMINISTRATOR_KEY, 
-    CUSTOMER_KEY, 
-    PHOTOGRAPHER_KEY,
     MASTER_PATH,
     ADMINISTRATOR_PATH,
-    CUSTOMER_PATH,
-    PHOTOGRAPHER_PATH
 };
 
 fn extract_bearer_token(request: &HttpRequest) -> Option<String> {
@@ -66,20 +62,6 @@ impl Authorizer for AdministratorAuthorizer {
     fn allowed_paths() -> Vec<&'static str> { vec![&ADMINISTRATOR_PATH, &MASTER_PATH] }
 }
 
-struct PhotographerAuthorizer;
-
-impl Authorizer for PhotographerAuthorizer {
-    fn secret_key() -> &'static str { &PHOTOGRAPHER_KEY }
-    fn allowed_paths() -> Vec<&'static str> { vec![&PHOTOGRAPHER_PATH, &ADMINISTRATOR_PATH, &MASTER_PATH] }
-}
-
-struct CustomerAuthorizer;
-
-impl Authorizer for CustomerAuthorizer {
-    fn secret_key() -> &'static str { &CUSTOMER_KEY }
-    fn allowed_paths() -> Vec<&'static str> { vec![&CUSTOMER_PATH, &ADMINISTRATOR_PATH, &MASTER_PATH] }
-}
-
 pub fn master_guard(request: &HttpRequest, path: String) -> Option<HttpResponse> {
     match MasterAuthorizer::is_path_allowed(&path) {
         true => MasterAuthorizer::authorize(request),
@@ -92,41 +74,5 @@ pub fn administrator_guard(request: &HttpRequest, path: String) -> Option<HttpRe
         true => AdministratorAuthorizer::authorize(request)
             .or_else(|| MasterAuthorizer::authorize(request)),
         false => Some(response::Response::get_forbidden(Message::NotAuthorized.get_message())),
-    }
-}
-
-pub fn photographer_guard(request: &HttpRequest, path: String) -> Option<HttpResponse> {
-    match PhotographerAuthorizer::is_path_allowed(&path) {
-        true => PhotographerAuthorizer::authorize(request)
-            .or_else(|| AdministratorAuthorizer::authorize(request))
-            .or_else(|| MasterAuthorizer::authorize(request)),
-        false => Some(response::Response::get_forbidden(Message::NotAuthorized.get_message())),
-    }
-}
-
-pub fn customer_guard(request: &HttpRequest, path: String) -> Option<HttpResponse> {
-    match CustomerAuthorizer::is_path_allowed(&path) {
-        true => CustomerAuthorizer::authorize(request)
-            .or_else(|| AdministratorAuthorizer::authorize(request))
-            .or_else(|| MasterAuthorizer::authorize(request)),
-        false => Some(response::Response::get_forbidden(Message::NotAuthorized.get_message())),
-    }
-}
-
-pub fn any_guard(request: &HttpRequest, path: String) -> Option<HttpResponse> {
-    match path.as_str() {
-        path if path == *MASTER_PATH => MasterAuthorizer::authorize(request),
-        path if path == *ADMINISTRATOR_PATH => 
-            AdministratorAuthorizer::authorize(request)
-                .or_else(|| MasterAuthorizer::authorize(request)),
-        path if path == *PHOTOGRAPHER_PATH => 
-            PhotographerAuthorizer::authorize(request)
-                .or_else(|| AdministratorAuthorizer::authorize(request))
-                .or_else(|| MasterAuthorizer::authorize(request)),
-        path if path == *CUSTOMER_PATH => 
-            CustomerAuthorizer::authorize(request)
-                .or_else(|| AdministratorAuthorizer::authorize(request))
-                .or_else(|| MasterAuthorizer::authorize(request)),
-        _ => Some(response::Response::get_forbidden(Message::NotAuthorized.get_message())),
     }
 }
